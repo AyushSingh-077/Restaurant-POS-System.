@@ -1,0 +1,2 @@
+export const money = (value) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+export const initials = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
