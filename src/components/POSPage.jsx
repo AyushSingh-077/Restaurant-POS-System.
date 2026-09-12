@@ -1,33 +1,434 @@
 import { useState } from 'react'
-import { ArrowUpRight, Check, Printer, Search, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Check,
+  Edit3,
+  Plus,
+  Printer,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  X,
+  ShoppingBag,
+  UserCheck
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useRestaurant } from '../useRestaurant'
 import { money } from '../utils'
+import PaymentModal from './PaymentModal'
 
-const categories = ['All', 'Starters', 'Main Course', 'Biryani', 'Chinese', 'Beverages', 'Desserts']
-
-function printKOT(cart, table, orderType) {
-    const rows = cart.map((item) => `<tr><td>${item.name}</td><td>${item.quantity}</td></tr>`).join('')
-    const popup = window.open('', '_blank', 'width=420,height=600')
-    if (!popup) { toast.error('Allow pop-ups to print the KOT'); return }
-    popup.document.write(`<html><head><title>Kitchen Order Ticket</title><style>body{font:14px monospace;padding:24px}h1{text-align:center;font-size:20px}hr{border:0;border-top:1px dashed #333}table{width:100%;text-align:left}td:last-child{text-align:right}</style></head><body><h1>OLIVE & THYME</h1><p>Order: #1049<br>Type: ${orderType}<br>Table: ${table || '—'}<br>${new Date().toLocaleString()}</p><hr><table>${rows}</table><hr><p>Special instructions: ____________________</p><script>window.print();</script></body></html>`)
-    popup.document.close()
-}
+const categories = [
+  'All',
+  'Starters',
+  'Main Course',
+  'Biryani',
+  'Breads',
+  'Chinese',
+  'South Indian',
+  'Beverages',
+  'Desserts'
+]
 
 export default function POSPage() {
-    const { menuItems, cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, clearCart, totals, selectedTable, setSelectedTable, orderType, setOrderType, discount, setDiscount, tables, completePayment } = useRestaurant()
-    const [query, setQuery] = useState('')
-    const [category, setCategory] = useState('All')
-    const [payOpen, setPayOpen] = useState(false)
-    const [method, setMethod] = useState('Cash')
-    const navigate = useNavigate()
-    const filtered = menuItems.filter((item) => (category === 'All' || item.category === category) && item.name.toLowerCase().includes(query.toLowerCase()))
-    const pay = () => { completePayment(method); setPayOpen(false); toast.success('Payment received and transaction saved'); navigate('/billing') }
-    return <div className="page order-page"><div className="page-heading compact"><div><p className="eyebrow accent">Point of sale</p><h2>Create new order</h2></div><div className="order-meta"><span className="live-dot" /> Service is live <span className="divider" /> <b>Order #1049</b></div></div><div className="pos-layout"><section className="menu-browser"><div className="search-line"><div className="search-box"><Search size={17} /><input placeholder="Search menu items..." value={query} onChange={(event) => setQuery(event.target.value)} /></div><button className="filter-button"><SlidersHorizontal size={16} /> Filters</button></div><div className="category-tabs">{categories.map((item) => <button className={category === item ? 'selected' : ''} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div><div className="menu-grid">{filtered.map((item) => <article className="menu-card" key={item.id}><div className="food-image"><img src={item.image} alt={item.name} /><span className={item.type === 'Veg' ? 'veg' : 'nonveg'} /></div><div className="menu-card-body"><div><h3>{item.name}</h3><span>{item.category} · {item.type}</span></div><p>{item.description}</p><div className="menu-card-bottom"><strong>{money(item.price)}</strong><button className="add-button" onClick={() => { addToCart(item); toast.success(`${item.name} added`) }}>+ Add</button></div></div></article>)}</div></section><aside className="cart-panel"><div className="cart-header"><div><p className="eyebrow">Current order</p><h3>Order #1049</h3></div><button className="icon-button" onClick={clearCart}><Trash2 size={17} /></button></div><div className="order-options"><label>Order type<select value={orderType} onChange={(event) => setOrderType(event.target.value)}><option>Dine In</option><option>Takeaway</option><option>Delivery</option></select></label>{orderType === 'Dine In' && <label>Table<select value={selectedTable} onChange={(event) => setSelectedTable(event.target.value)}>{tables.map((table) => <option key={table.id}>{table.name}</option>)}</select></label>}<label>Customer<input placeholder="Walk-in Guest" /></label></div><div className="cart-items">{cart.length === 0 ? <div className="empty-cart"><strong>Your order is empty</strong><span>Add items from the menu to get started</span></div> : cart.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-main"><strong>{item.name}</strong><span>{money(item.price)} each</span><div className="quantity"><button onClick={() => decreaseQuantity(item.id)}>−</button><b>{item.quantity}</b><button onClick={() => increaseQuantity(item.id)}>+</button><button className="icon-button" onClick={() => removeFromCart(item.id)}><X size={13} /></button></div></div><b>{money(item.price * item.quantity)}</b></div>)}</div><div className="cart-summary"><div><span>Subtotal</span><b>{money(totals.subtotal)}</b></div><div><span>Discount</span><input type="number" min="0" value={discount} onChange={(event) => setDiscount(Number(event.target.value) || 0)} /></div><div><span>CGST ({2.5}%)</span><b>{money(totals.cgst)}</b></div><div><span>SGST ({2.5}%)</span><b>{money(totals.sgst)}</b></div><div><span>Service charge</span><b>{money(totals.service)}</b></div><div className="grand-total"><span>Grand total</span><strong>{money(totals.total)}</strong></div></div><div className="cart-actions"><button className="secondary-button" onClick={() => toast.success('Order held locally')}>Hold</button><button className="secondary-button" onClick={clearCart}>Clear</button><button className="secondary-button" disabled={!cart.length} onClick={() => printKOT(cart, selectedTable, orderType)}><Printer size={15} /> KOT</button><button className="primary-button pay-button" disabled={!cart.length} onClick={() => setPayOpen(true)}>Pay now <ArrowUpRight size={16} /></button></div></aside></div>{payOpen && <PaymentDialog total={totals.total} method={method} setMethod={setMethod} onClose={() => setPayOpen(false)} onPay={pay} />}</div>
-}
+  const {
+    menuItems,
+    cart,
+    addToCart,
+    updateQuantity,
+    updateItemNotes,
+    removeFromCart,
+    clearCart,
+    totals,
+    selectedTable,
+    setSelectedTable,
+    orderType,
+    setOrderType,
+    customerName,
+    setCustomerName,
+    customerPhone,
+    setCustomerPhone,
+    discount,
+    setDiscount,
+    discountType,
+    setDiscountType,
+    tables,
+    customers,
+    completePayment,
+    setActiveKOTOrder,
+    settings
+  } = useRestaurant()
 
-function PaymentDialog({ total, method, setMethod, onClose, onPay }) {
-    const [received, setReceived] = useState(Math.ceil(total))
-    return <div className="modal-backdrop"><div className="modal"><div className="modal-head"><div><p className="eyebrow accent">Checkout</p><h2>Collect payment</h2></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="amount-due"><span>Amount due</span><strong>{money(total)}</strong></div><div className="payment-methods">{['Cash', 'UPI', 'Card', 'Other'].map((item) => <button className={method === item ? 'active' : ''} onClick={() => setMethod(item)} key={item}>{item}</button>)}</div><label className="modal-field">Amount received<input type="number" min="0" value={received} onChange={(event) => setReceived(Number(event.target.value) || 0)} /></label><div className="change-line"><span>Change to return</span><b>{money(Math.max(0, received - total))}</b></div><button className="primary-button full-button" disabled={method === 'Cash' && received < total} onClick={onPay}><Check size={17} /> Confirm {method} payment</button></div></div>
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const [dietFilter, setDietFilter] = useState('All') // 'All' | 'Veg' | 'Non-Veg'
+  const [payOpen, setPayOpen] = useState(false)
+  const [noteItem, setNoteItem] = useState(null)
+  const [customNote, setCustomNote] = useState('')
+  const navigate = useNavigate()
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    const categoryMatches = category === 'All' || item.category === category
+    const dietMatches = dietFilter === 'All' || item.type === dietFilter
+    const queryMatches =
+      item.name.toLowerCase().includes(query.toLowerCase()) ||
+      item.category.toLowerCase().includes(query.toLowerCase())
+    return categoryMatches && dietMatches && queryMatches
+  })
+
+  const handlePayConfirm = (method) => {
+    const completedOrder = completePayment(method, true)
+    setPayOpen(false)
+    toast.success(`Payment of ${money(completedOrder.amount)} received via ${method}`)
+    navigate('/billing')
+  }
+
+  const handlePrintKOT = () => {
+    if (!cart.length) return
+    const kotData = {
+      id: `KOT-${Math.floor(1000 + Math.random() * 9000)}`,
+      type: orderType,
+      table: selectedTable,
+      date: new Date().toLocaleString(),
+      detailItems: cart.map((i) => ({ ...i }))
+    }
+    setActiveKOTOrder(kotData)
+    toast.success('KOT generated for kitchen')
+  }
+
+  const saveItemNote = () => {
+    if (noteItem) {
+      updateItemNotes(noteItem.id, customNote)
+      setNoteItem(null)
+      setCustomNote('')
+      toast.success('Special instructions saved')
+    }
+  }
+
+  return (
+    <div className="page order-page pos-terminal">
+      <div className="page-heading compact">
+        <div>
+          <p className="eyebrow accent">Point of Sale Terminal</p>
+          <h2>New Order & Billing</h2>
+        </div>
+        <div className="order-meta">
+          <span className="live-dot" /> Service Terminal Active
+        </div>
+      </div>
+
+      <div className="pos-layout">
+        {/* Left Column: Menu Catalog Browser */}
+        <section className="menu-browser">
+          <div className="search-line">
+            <div className="search-box">
+              <Search size={17} />
+              <input
+                placeholder="Search menu items by name..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button className="icon-button" onClick={() => setQuery('')}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Veg / Non-Veg Diet Toggle Buttons */}
+            <div className="diet-toggle-group">
+              <button
+                className={`diet-btn ${dietFilter === 'All' ? 'active' : ''}`}
+                onClick={() => setDietFilter('All')}
+              >
+                All
+              </button>
+              <button
+                className={`diet-btn veg ${dietFilter === 'Veg' ? 'active' : ''}`}
+                onClick={() => setDietFilter('Veg')}
+              >
+                <span className="dot veg-dot" /> Veg
+              </button>
+              <button
+                className={`diet-btn nonveg ${dietFilter === 'Non-Veg' ? 'active' : ''}`}
+                onClick={() => setDietFilter('Non-Veg')}
+              >
+                <span className="dot nonveg-dot" /> Non-Veg
+              </button>
+            </div>
+          </div>
+
+          {/* Category Tabs */}
+          <div className="category-tabs">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                className={category === cat ? 'selected' : ''}
+                onClick={() => setCategory(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Menu Cards Grid */}
+          <div className="menu-grid">
+            {filteredMenuItems.map((item) => {
+              const inCart = cart.find((i) => i.id === item.id)
+              return (
+                <article
+                  className={`menu-card ${!item.inStock ? 'out-of-stock' : ''}`}
+                  key={item.id}
+                >
+                  <div className="food-image">
+                    <img src={item.image} alt={item.name} />
+                    <span className={item.type === 'Veg' ? 'veg' : 'nonveg'} />
+                    {!item.inStock && <div className="stock-overlay">Out of Stock</div>}
+                  </div>
+                  <div className="menu-card-body">
+                    <div>
+                      <h3>{item.name}</h3>
+                      <span>
+                        {item.category} · {item.type}
+                      </span>
+                    </div>
+                    <p>{item.description}</p>
+                    <div className="menu-card-bottom">
+                      <strong>{money(item.price)}</strong>
+
+                      {inCart ? (
+                        <div className="card-qty-controls">
+                          <button onClick={() => updateQuantity(item.id, -1)}>−</button>
+                          <b>{inCart.quantity}</b>
+                          <button onClick={() => updateQuantity(item.id, 1)}>+</button>
+                        </div>
+                      ) : (
+                        <button
+                          className="add-button"
+                          disabled={!item.inStock}
+                          onClick={() => {
+                            addToCart(item)
+                            toast.success(`${item.name} added to cart`)
+                          }}
+                        >
+                          <Plus size={14} /> Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Right Column: Cart Panel */}
+        <aside className="cart-panel">
+          <div className="cart-header">
+            <div>
+              <p className="eyebrow">Current Cart</p>
+              <h3>Selected Items</h3>
+            </div>
+            {cart.length > 0 && (
+              <button className="icon-button danger" onClick={clearCart} title="Clear Cart">
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Order Details & Customer Header */}
+          <div className="order-options">
+            <div className="option-row">
+              <label>
+                <span>Order Type</span>
+                <select value={orderType} onChange={(e) => setOrderType(e.target.value)}>
+                  <option value="Dine In">Dine In</option>
+                  <option value="Takeaway">Takeaway</option>
+                  <option value="Delivery">Delivery</option>
+                </select>
+              </label>
+
+              {orderType === 'Dine In' && (
+                <label>
+                  <span>Select Table</span>
+                  <select value={selectedTable} onChange={(e) => setSelectedTable(e.target.value)}>
+                    {tables.map((table) => (
+                      <option key={table.id} value={table.name}>
+                        {table.name} ({table.section} - {table.capacity}s)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+
+            <div className="option-row">
+              <label className="col-span-2">
+                <span>Customer Name</span>
+                <input
+                  type="text"
+                  placeholder="Walk-in Guest"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Cart Items List */}
+          <div className="cart-items">
+            {cart.length === 0 ? (
+              <div className="empty-cart">
+                <ShoppingBag size={36} />
+                <strong>Cart is empty</strong>
+                <span>Click "+ Add" on menu items to begin building order</span>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div className="cart-item" key={item.id}>
+                  <img src={item.image} alt={item.name} />
+                  <div className="cart-item-main">
+                    <strong>{item.name}</strong>
+                    <span className="unit-price">{money(item.price)} each</span>
+                    {item.notes && <p className="item-note">Note: {item.notes}</p>}
+
+                    <div className="quantity">
+                      <button onClick={() => updateQuantity(item.id, -1)}>−</button>
+                      <b>{item.quantity}</b>
+                      <button onClick={() => updateQuantity(item.id, 1)}>+</button>
+                      <button
+                        className="note-btn"
+                        title="Add instruction"
+                        onClick={() => {
+                          setNoteItem(item)
+                          setCustomNote(item.notes || '')
+                        }}
+                      >
+                        <Edit3 size={12} />
+                      </button>
+                      <button
+                        className="icon-button remove"
+                        onClick={() => removeFromCart(item.id)}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <b>{money(item.price * item.quantity)}</b>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Cart Totals Breakdown */}
+          <div className="cart-summary">
+            <div>
+              <span>Subtotal</span>
+              <b>{money(totals.subtotal)}</b>
+            </div>
+
+            <div className="discount-input-row">
+              <span>Discount</span>
+              <div className="discount-controls">
+                <select
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value)}
+                  className="disc-type-select"
+                >
+                  <option value="amount">₹</option>
+                  <option value="percent">%</option>
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  value={discount}
+                  onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <span>CGST ({settings.cgstRate}%)</span>
+              <b>{money(totals.cgst)}</b>
+            </div>
+            <div>
+              <span>SGST ({settings.sgstRate}%)</span>
+              <b>{money(totals.sgst)}</b>
+            </div>
+            {settings.enableServiceCharge && (
+              <div>
+                <span>Service Charge ({settings.serviceChargeRate}%)</span>
+                <b>{money(totals.service)}</b>
+              </div>
+            )}
+
+            <div className="grand-total">
+              <span>Grand Total</span>
+              <strong>{money(totals.total)}</strong>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="cart-actions">
+            <button
+              className="secondary-button"
+              disabled={!cart.length}
+              onClick={handlePrintKOT}
+            >
+              <Printer size={15} /> KOT Ticket
+            </button>
+            <button
+              className="primary-button pay-button"
+              disabled={!cart.length}
+              onClick={() => setPayOpen(true)}
+            >
+              Pay Now <ArrowUpRight size={16} />
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Item Note Modal */}
+      {noteItem && (
+        <div className="modal-backdrop">
+          <div className="modal note-modal">
+            <div className="modal-head">
+              <h3>Special Instructions for {noteItem.name}</h3>
+              <button className="icon-button" onClick={() => setNoteItem(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <label className="modal-field">
+              <span>Note (e.g., Less spicy, No onion, Extra cheese)</span>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Type cooking instructions..."
+                value={customNote}
+                onChange={(e) => setCustomNote(e.target.value)}
+              />
+            </label>
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setNoteItem(null)}>
+                Cancel
+              </button>
+              <button className="primary-button" onClick={saveItemNote}>
+                Save Instruction
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Payment Dialog */}
+      {payOpen && (
+        <PaymentModal
+          total={totals.total}
+          settings={settings}
+          onClose={() => setPayOpen(false)}
+          onPay={handlePayConfirm}
+        />
+      )}
+    </div>
+  )
 }
